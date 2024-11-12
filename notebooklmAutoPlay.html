@@ -99,13 +99,18 @@
             color: #333;
             margin-bottom: 30px;
         }
+        /* ... (styles remain the same) */
+        .invalid-subtitle {
+            color: red; /* 红色用于标记无效的字幕行 */
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>播客播放器</h1>
-        
+
         <div class="upload-section">
+            <!-- ... (upload section remains the same) -->
             <label class="upload-btn">
                 选择音频文件
                 <input type="file" id="audioFile" accept=".wav">
@@ -116,7 +121,9 @@
             </label>
             <div id="audioFileName" class="file-name"></div>
             <div id="textFileName" class="file-name"></div>
+            <!-- <button id="reloadSubtitles" class="upload-btn">重新加载字幕</button>  -->
         </div>
+
 
         <div class="player-section">
             <audio id="audio" controls></audio>
@@ -127,15 +134,19 @@
     <script>
         let subtitles = [];
         let currentSubtitleIndex = 0;
+        let subtitleFileContent = ""; // Store the subtitle file content
 
-        // 获取元素
+        // ... (element selection remains the same)
         const audioPlayer = document.getElementById('audio');
         const audioFileInput = document.getElementById('audioFile');
         const subtitleFileInput = document.getElementById('textFile');
         const subtitleContainer = document.getElementById('transcript');
         const audioFileNameDisplay = document.getElementById('audioFileName');
         const textFileNameDisplay = document.getElementById('textFileName');
+        // const reloadSubtitlesButton = document.getElementById('reloadSubtitles');
 
+
+        // ... (audio file upload remains the same)
         // 监听音频文件上传
         audioFileInput.addEventListener('change', function() {
             const file = this.files[0];
@@ -152,9 +163,8 @@
             if (file) {
                 const reader = new FileReader();
                 reader.onload = function() {
-                    // 解析字幕
-                    parseSubtitles(reader.result);
-                    // 显示字幕
+                    subtitleFileContent = reader.result; // Store file content
+                    parseSubtitles(subtitleFileContent);
                     displaySubtitles();
                 };
                 reader.readAsText(file);
@@ -162,23 +172,41 @@
             }
         });
 
+
+        // reloadSubtitlesButton.addEventListener('click', function() {
+        //     parseSubtitles(subtitleFileContent);
+        //     displaySubtitles();
+        // });
+
         function parseSubtitles(text) {
             subtitles = [];
             currentSubtitleIndex = 0;
             let lines = text.split('\n').filter(line => line.trim() !== '');
             for (let i = 0; i < lines.length; i += 3) {
+                if (i + 2 >= lines.length) { // Check if there are enough lines for a complete subtitle
+                    for (let j = i; j < lines.length; j++) {
+                       subtitles.push({ speaker: "INVALID", time: 0, content: lines[j], invalid: true }); 
+                    }
+                    break; // Exit the loop if not enough lines
+                }
                 let speaker = lines[i].trim();
                 let time = lines[i + 1].trim();
                 let content = lines[i + 2].trim();
 
-                // 将时间转换为秒
                 let timeParts = time.match(/\d+/g);
-                let seconds = parseInt(timeParts[0]) * 3600 + parseInt(timeParts[1]) * 60 + parseInt(timeParts[2]);
+                if(!timeParts || timeParts.length < 3) { // check if time format is valid
+                  subtitles.push({ speaker: "INVALID", time: 0, content: lines[i] + "\n" + lines[i+1] + "\n" + lines[i+2], invalid: true });
+                  continue;
+                }
+
+                 let seconds = parseInt(timeParts[0]) * 3600 + parseInt(timeParts[1]) * 60 + parseInt(timeParts[2]);
+
 
                 subtitles.push({
                     speaker: speaker,
                     time: seconds,
-                    content: content
+                    content: content,
+                    invalid: false
                 });
             }
         }
@@ -188,17 +216,20 @@
             subtitles.forEach((subtitle, index) => {
                 let p = document.createElement('p');
                 p.id = 'subtitle-' + index;
-                // 将 speaker 转换为小写并替换下划线为短横线
                 let speakerClass = subtitle.speaker.toLowerCase().replace('_', '-');
                 p.classList.add('subtitle', speakerClass);
-                // 在每句话前添加角色 ID
-                p.textContent = subtitle.speaker + ": " + subtitle.content;
+                if(subtitle.invalid){
+                    p.classList.add('invalid-subtitle');
+                    p.textContent = subtitle.content;
+                } else {
+                    p.textContent = subtitle.speaker + ": " + subtitle.content;
+                }
                 subtitleContainer.appendChild(p);
             });
         }
-
-        // 同步字幕
-        audioPlayer.addEventListener('timeupdate', function() {
+       // ... (rest of the code remains the same)
+       // 同步字幕
+       audioPlayer.addEventListener('timeupdate', function() {
             let currentTime = audioPlayer.currentTime;
 
             if (currentSubtitleIndex < subtitles.length && currentTime >= subtitles[currentSubtitleIndex].time) {
